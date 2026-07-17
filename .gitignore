@@ -1,0 +1,43 @@
+# Node
+node_modules/
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+out/
+build/
+.vercel
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+
+# MacOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Local data / uploads
+backend/uploads/
+
+
+# Documentation
+ARCHITECTURE.md
+MEMORY.md
+PHASES.md
+PRD.md
+RULES.md
