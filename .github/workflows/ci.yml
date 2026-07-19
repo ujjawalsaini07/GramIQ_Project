@@ -28,7 +28,7 @@ jobs:
       - name: Run pytest (Mock provider, no API key needed)
         env:
           AI_PROVIDER: mock
-          GEMINI_API_KEY: ""
+          GROQ_API_KEY: ""
           POSTGRES_SERVER: localhost
           POSTGRES_PORT: 5432
           POSTGRES_USER: postgres
