@@ -23,11 +23,11 @@ async def test_create_prediction_happy_path(client: AsyncClient):
     Auth: No authentication required (single-tenant dashboard)
     """
     from unittest.mock import patch, AsyncMock
-    # Patch storage so tests never hit the real filesystem
+    # Patch CloudinaryService so tests never hit the real Cloudinary API
     with patch(
-        "app.services.prediction_service.LocalStorageBackend.save",
+        "app.services.prediction_service.CloudinaryService.upload_image",
         new_callable=AsyncMock,
-        return_value="test_image.jpg",
+        return_value="https://res.cloudinary.com/test/image/upload/GRAMIQ/test_image.jpg",
     ):
         fake_jpeg = bytes([0xFF, 0xD8, 0xFF, 0xE0]) + b"\x00" * 16
         response = await client.post(
@@ -45,6 +45,8 @@ async def test_create_prediction_happy_path(client: AsyncClient):
     assert "severity" in body["data"]
     assert "recommendation" in body["data"]
     assert body["data"]["crop_type"] == "Tomato"
+    # Verify image_url is populated from Cloudinary
+    assert body["data"]["image_url"] is not None
 
 
 @pytest.mark.asyncio
