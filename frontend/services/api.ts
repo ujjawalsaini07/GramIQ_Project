@@ -1,4 +1,4 @@
-import { APIResponse, PredictionOut, PaginatedPredictions } from "../types/prediction";
+import { APIResponse, PredictionOut, PaginatedPredictions, PredictionFilters } from "../types/prediction";
 import { AnalyticsSummary } from "../types/analytics";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -30,10 +30,26 @@ export const api = {
    * Get a paginated list of predictions.
    * @param page Page number
    * @param pageSize Items per page
+   * @param filters Optional crop, disease, and date range filters
    * @returns APIResponse with PaginatedPredictions
    */
-  async getPredictions(page: number = 1, pageSize: number = 10): Promise<APIResponse<PaginatedPredictions>> {
-    const res = await fetch(`${API_URL}/predictions?page=${page}&page_size=${pageSize}`, {
+  async getPredictions(
+    page: number = 1,
+    pageSize: number = 10,
+    filters: PredictionFilters = {}
+  ): Promise<APIResponse<PaginatedPredictions>> {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value?.trim()) {
+        params.set(key, value.trim());
+      }
+    });
+
+    const res = await fetch(`${API_URL}/predictions?${params.toString()}`, {
       cache: "no-store",
     });
     return res.json();

@@ -32,3 +32,10 @@ export interface PaginatedPredictions {
   page: number;
   page_size: number;
 }
+
+export interface PredictionFilters {
+  crop_type?: string;
+  disease?: string;
+  date_from?: string;
+  date_to?: string;
+}
