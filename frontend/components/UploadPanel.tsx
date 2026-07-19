@@ -1,11 +1,32 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { api } from "../services/api";
 import { PredictionOut } from "../types/prediction";
 import Spinner from "./ui/Spinner";
 import ErrorBanner from "./ui/ErrorBanner";
 import PredictionDetail from "./PredictionDetail";
 import { UploadCloud, FileType2, AlignLeft, Sparkles } from "lucide-react";
+import loaderGuide from "../assests/loader.png";
+
+const COMMON_CROPS = [
+  "Tomato",
+  "Wheat",
+  "Rice",
+  "Corn",
+  "Potato",
+  "Soybean",
+  "Cotton",
+  "Sugarcane",
+  "Onion",
+  "Chili",
+  "Mango",
+  "Banana",
+  "Grapes",
+  "Apple",
+  "Groundnut",
+  "Mustard",
+];
 
 /**
  * UploadPanel handles image and data collection, submits to API, and shows the result.
@@ -86,12 +107,18 @@ export default function UploadPanel() {
               </label>
               <input 
                 type="text" 
+                list="common-crop-types"
                 value={cropType}
                 onChange={(e) => setCropType(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-slate-800 placeholder-slate-400 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
                 placeholder="e.g. Tomato, Wheat, Rice"
                 required
               />
+              <datalist id="common-crop-types">
+                {COMMON_CROPS.map((crop) => (
+                  <option key={crop} value={crop} />
+                ))}
+              </datalist>
             </div>
 
             <div>
@@ -123,6 +150,19 @@ export default function UploadPanel() {
                 </>
               )}
             </button>
+
+            {loading && (
+              <div className="hidden lg:flex justify-center pt-2">
+                <div className="w-full max-w-2xl rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 shadow-sm">
+                  <Image
+                    src={loaderGuide}
+                    alt="Crop photo guide showing the correct way to capture a clear affected leaf image"
+                    className="mx-auto h-auto w-full rounded-xl object-contain"
+                    priority
+                  />
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
