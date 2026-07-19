@@ -2,12 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.core.exceptions import add_exception_handlers
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+add_exception_handlers(app)
 
 # Set up CORS
 app.add_middleware(
