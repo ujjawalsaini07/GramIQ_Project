@@ -56,7 +56,7 @@ async def test_create_prediction_invalid_file_type(client: AsyncClient):
     with success=False and an informative error message.
 
     Request: multipart/form-data — image (text/plain), crop_type="Tomato"
-    Response: 422 or 201 with success=False, error details in body
+    Response: 422, success=False, error details in body
     Auth: No authentication required (single-tenant dashboard)
     """
     fake_text_file = b"This is not an image"
@@ -67,11 +67,30 @@ async def test_create_prediction_invalid_file_type(client: AsyncClient):
         data={"crop_type": "Tomato"},
     )
 
-    # Our handler returns 201 with success=False for business-logic errors
+    assert response.status_code == 422, f"Expected 422, got {response.status_code}: {response.text}"
     body = response.json()
     assert body["success"] is False, "Upload of invalid file type must have success=False"
     assert body["message"] is not None and len(body["message"]) > 0
 
+
+@pytest.mark.asyncio
+async def test_get_prediction_not_found_returns_404(client: AsyncClient):
+    """
+    Failure path: requesting a prediction id that doesn't exist should return
+    a real HTTP 404, not a 200 with success=False.
+
+    Request: GET /api/v1/predictions/{random-uuid}
+    Response: 404, success=False, error details in body
+    Auth: No authentication required (single-tenant dashboard)
+    """
+    import uuid
+    missing_id = uuid.uuid4()
+
+    response = await client.get(f"/api/v1/predictions/{missing_id}")
+
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}: {response.text}"
+    body = response.json()
+    assert body["success"] is False
 
 @pytest.mark.asyncio
 async def test_list_predictions_returns_envelope(client: AsyncClient):

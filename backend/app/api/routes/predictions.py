@@ -24,15 +24,8 @@ async def create_prediction(
     Auth: No authentication required (single-tenant dashboard)
     Errors: 422 invalid file, 502 AI provider failure, 500 unexpected error
     """
-    try:
-        prediction = await PredictionService.create_prediction(db, image, crop_type, farmer_notes)
-        return APIResponse(success=True, data=prediction)
-    except HTTPException as e:
-        return APIResponse(
-            success=False,
-            message=e.detail,
-            errors=[{"field": "image", "detail": e.detail}]
-        )
+    prediction = await PredictionService.create_prediction(db, image, crop_type, farmer_notes)
+    return APIResponse(success=True, data=prediction)
 
 @router.get("/predictions", status_code=200, response_model=APIResponse[Any])
 async def list_predictions(
@@ -84,11 +77,6 @@ async def get_prediction(
     prediction = result.scalar_one_or_none()
     
     if not prediction:
-        return APIResponse(
-            success=False,
-            message="Prediction not found",
-            errors=[{"field": "id", "detail": f"No prediction found with id {id}"}]
-        )
-        
+        raise HTTPException(status_code=404, detail=f"No prediction found with id {id}")
     return APIResponse(success=True, data=prediction)
 

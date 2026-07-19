@@ -12,11 +12,9 @@ class Prediction(Base):
     image_filename = Column(String(255), nullable=True)
     image_url = Column(String(1024), nullable=True)
     farmer_notes = Column(Text, nullable=True)
-    predicted_disease = Column(String(150), nullable=False)
+    predicted_disease = Column(String(150), nullable=False, index=True)
     confidence = Column(Float, nullable=False)
     severity = Column(String(50), nullable=True)
     recommendation = Column(Text, nullable=True)
     ai_provider = Column(String(50), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-# Indexing will be handled by Alembic or in schema (as per ARCHITECTURE.md)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
