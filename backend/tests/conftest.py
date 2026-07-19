@@ -1,7 +1,7 @@
 """
 Shared pytest fixtures for the backend test suite.
 Uses an in-memory SQLite database so tests never require a live Postgres instance.
-The AI_PROVIDER environment variable is forced to 'mock' so no Gemini API key is needed in CI.
+The AI_PROVIDER environment variable is forced to 'mock' so no Groq API key is needed in CI.
 """
 import os
 import pytest

@@ -1,9 +1,12 @@
 import asyncio
 import uuid
 import random
+import logging
 from datetime import datetime, timedelta, timezone
 from app.db import async_session_maker
 from app.models.prediction import Prediction
+
+logger = logging.getLogger(__name__)
 
 DISEASES = [
     ("Tomato Blight", "High", "Remove infected leaves immediately and apply copper-based fungicide."),
@@ -17,6 +20,13 @@ DISEASES = [
 CROPS = ["Tomato", "Wheat", "Corn", "Potato", "Soybean", "Rice"]
 
 async def seed_data():
+    """
+    Seed the database with realistic demo prediction rows.
+
+    Input: none; reads the configured database session factory.
+    Output: inserts rows only when the predictions table is empty.
+    Failure modes: database connection or commit errors propagate to the caller.
+    """
     async with async_session_maker() as session:
         # Check if we already have data
         from sqlalchemy import select, func
@@ -25,10 +35,10 @@ async def seed_data():
         count = result.scalar_one()
         
         if count > 0:
-            print("Database already seeded.")
+            logger.info("Database already seeded.")
             return
 
-        print("Seeding database with 25 realistic rows...")
+        logger.info("Seeding database with 25 realistic rows...")
         now = datetime.now(timezone.utc)
         
         predictions = []
@@ -56,7 +66,8 @@ async def seed_data():
             
         session.add_all(predictions)
         await session.commit()
-        print("Seeding complete.")
+        logger.info("Seeding complete.")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(seed_data())
