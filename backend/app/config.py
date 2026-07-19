@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # Provider selection
     AI_PROVIDER: str = "mock"
-    GEMINI_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
     
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
