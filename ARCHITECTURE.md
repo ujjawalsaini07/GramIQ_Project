@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — Krishi Clinic Lite
+# Architecture — Krishi Clinic Lite
 
 ## 1. System Overview
 
@@ -59,8 +59,7 @@ flowchart LR
     api -->|APIResponse envelope| frontend
 ```
 
-Everything runs via `docker compose up`: `frontend`, `backend`, `db` services, one shared
-network, backend depends on `db` health check.
+Everything runs via `docker compose up`: `frontend`, `backend`, `db` services on one shared network, with `backend` waiting on `db`'s health check before it migrates, seeds, and starts serving.
 
 ## 2. Tech Stack & Rationale
 
@@ -78,7 +77,7 @@ network, backend depends on `db` health check.
 | Containerization | Docker + Docker Compose | Required; one-command bring-up |
 | CI | GitHub Actions | Required; lint + test both services |
 | Package mgmt | npm (frontend), pip + `venv` / `requirements.txt` (backend) | Standard, zero extra onboarding friction for a reviewer |
-| Testing | pytest (backend) — required minimum 3 tests | Matches required stack; frontend tests are optional/stretch, not required by rubric |
+| Testing | pytest (backend) — required minimum 3 tests, 6 implemented | Matches required stack; frontend tests are optional/stretch, not required by rubric |
 
 ## 3. App Flow (Request Lifecycle)
 
@@ -101,9 +100,7 @@ network, backend depends on `db` health check.
 5. Frontend renders Prediction Detail using the returned object
 ```
 
-**History / Analytics** are straightforward read paths that query via SQLAlchemy or SQL text
-and serialize through Pydantic schemas. Analytics aggregates are computed in SQL, not pulled
-client-side from a full record dump.
+**History / Analytics** are straightforward read paths that query via SQLAlchemy or SQL text and serialize through Pydantic schemas. Analytics aggregates are computed in SQL, not pulled client-side from a full record dump. History supports server-side filtering by crop type, disease, and date range, so the table, its pagination totals, and any CSV/PDF export always describe the same result set.
 
 ## 4. Backend Architecture
 
@@ -118,11 +115,11 @@ backend/
 │   │       ├── predictions.py  # thin: parse input, call service, return schema
 │   │       └── analytics.py
 │   ├── services/
-│   │   ├── prediction_service.py   # orchestration: storage + AI + persistence
+│   │   ├── prediction_service.py   # orchestration: validation + AI + storage + persistence
 │   │   ├── storage/
 │   │   │   ├── base.py             # StorageBackend interface
-│   │   │   ├── cloudinary_service.py # Cloudinary upload helper
-│   │   │   └── local.py            # filesystem impl retained as a fallback
+│   │   │   ├── cloudinary_service.py # Cloudinary upload helper (active backend)
+│   │   │   └── local.py            # filesystem impl kept as reference/fallback
 │   │   └── ai/
 │   │       ├── base.py             # AIProvider interface (abstract)
 │   │       ├── groq_provider.py
@@ -133,24 +130,20 @@ backend/
 │   ├── schemas/
 │   │   └── prediction.py       # Pydantic response models + shared envelope
 │   └── core/
-│       └── exceptions.py       # custom exception classes + handlers
+│       └── exceptions.py       # global exception handlers (HTTPException, validation, DB, generic)
 ├── alembic/
+│   └── versions/                # one migration per schema change (including index additions)
 ├── tests/
-│   ├── test_ai_provider.py     # AIProvider abstraction (mock + interface contract)
-│   └── test_predictions_route.py
-├── seed.py
+│   ├── test_ai_provider.py     # AIProvider abstraction (mock determinism + shape)
+│   └── test_predictions_route.py  # happy path, invalid file (422), not-found (404), list envelope
+├── seed.py                     # inserts 25 sample rows across crop types/diseases/dates
 ├── requirements.txt
 └── .env.example
 ```
 
-**Rule enforced by this structure**: routes never import provider SDKs and never build response
-schemas by hand. Business orchestration lives in services, with small read queries kept close to
-their route until the API grows enough to justify dedicated query services.
+**Rule enforced by this structure:** routes never import provider SDKs and never build response schemas by hand. Business orchestration lives in services. Small read queries for list/analytics currently sit close to their route rather than in a separate query module — acceptable at this scope, called out as the first refactor target in `ENGINEERING_DECISIONS.md` if the API grows.
 
-**Documentation**: every route in `api/routes/`, every method in `services/`, and every
-`AIProvider`/`StorageBackend` implementation carries a docstring documenting its
-Request/Response shape, Auth requirement, and possible error codes, per RULES.md §5.1. This is
-written alongside the code in each phase, not retrofitted later.
+**Documentation convention:** every route in `api/routes/`, every method in `services/`, and every `AIProvider`/`StorageBackend` implementation carries a docstring documenting its Request/Response shape, Auth requirement, and possible error codes. This is written alongside the code as each piece is built, not retrofitted afterward.
 
 ### 4.1 AIProvider Interface (contract)
 
@@ -163,9 +156,7 @@ class AIProvider(ABC):
         """Returns a structured prediction or raises AIProviderError."""
 ```
 
-`PredictionResult` is a Pydantic model: `disease: str`, `confidence: float (0-1)`,
-`severity: Literal["Low","Medium","High"]`, `recommendation: str`. Both Groq and Mock
-providers return exactly this shape — the route/service layer never branches on provider type.
+`PredictionResult` is a Pydantic model: `disease: str`, `confidence: float (0-1)`, `severity: Literal["Low","Medium","High"]`, `recommendation: str`. Both Groq and Mock providers return exactly this shape — the route/service layer never branches on provider type.
 
 ### 4.2 API Contract
 
@@ -180,11 +171,13 @@ Errors:
 
 | Endpoint | Method | Success Code | Notes |
 |---|---|---|---|
-| `/health` | GET | 200 | `{status: "ok"}` — no DB dependency, must never itself hit DB failure |
+| `/health` | GET | 200 | `{status: "ok"}` — no DB dependency, must never itself hit a DB failure |
 | `/api/v1/predictions` | POST | 201 | multipart; 422 invalid file, 502 AI failure, 500 unexpected |
-| `/api/v1/predictions` | GET | 200 | `?page=&page_size=&crop_type=&disease=&date_from=&date_to=`; filtered paginated envelope with `total`, `page`, `page_size` |
-| `/api/v1/predictions/{id}` | GET | 200 / 404 | 404 if id not found or malformed UUID |
-| `/api/v1/analytics/summary` | GET | 200 | total_predictions, disease_distribution[], daily_volume[], severity_distribution[], avg_confidence |
+| `/api/v1/predictions` | GET | 200 | `?page=&page_size=&crop_type=&disease=&date_from=&date_to=`; filtered, paginated envelope with `total`, `page`, `page_size` |
+| `/api/v1/predictions/{id}` | GET | 200 / 404 | real 404 if id not found or malformed |
+| `/api/v1/analytics/summary` | GET | 200 | `total_predictions`, `avg_confidence`, `disease_distribution[]`, `daily_volume[]` (last 7 days), `severity_distribution[]` |
+
+All error responses use a real, meaningful HTTP status code — there is a single global `HTTPException` handler (in `core/exceptions.py`) that preserves whatever status code was raised while still wrapping the body in the same `APIResponse` envelope, so clients never have to inspect the body to discover a request actually failed.
 
 ## 5. Frontend Architecture
 
@@ -192,30 +185,26 @@ Errors:
 frontend/
 ├── app/
 │   ├── page.tsx                 # Upload Panel (home)
-│   ├── history/page.tsx
-│   ├── history/[id]/page.tsx
-│   └── analytics/page.tsx
+│   ├── history/page.tsx         # Paginated + filterable history, CSV/PDF export
+│   ├── history/[id]/page.tsx    # Single prediction detail
+│   └── analytics/page.tsx       # Analytics dashboard (charts)
 ├── components/
 │   ├── UploadPanel.tsx
 │   ├── PredictionDetail.tsx
 │   ├── Navbar.tsx
-│   └── ui/                      # small shared bits: Spinner, ErrorBanner, EmptyState
+│   └── ui/                      # small shared bits: Spinner, ErrorBanner
 ├── services/
-│   └── api.ts                   # single fetch client, typed responses, base URL from env
+│   ├── api.ts                   # single fetch client, typed responses, base URL from env
+│   └── export.ts                # CSV/PDF export helpers (client-side)
 ├── types/
 │   ├── prediction.ts            # TS types mirroring backend Pydantic schemas
 │   └── analytics.ts             # TS analytics summary types
 └── .env.example
 ```
 
-**Rule**: components never call `fetch` directly — always through `services/api.ts`. Every view
-has three explicit states: loading, error, empty, in addition to the happy path. No component
-assumes data is present. History filtering and CSV export use the same API query params so the
-exported file matches the active filtered dataset.
+**Rule:** components never call `fetch` directly — always through `services/api.ts`. Every view handles loading, error, and empty states explicitly, in addition to the happy path — no component assumes data is present. History filtering and CSV/PDF export use the same API query params as the visible table, so an export always matches what's on screen.
 
-**Documentation**: every exported component and every function in `services/api.ts` carries a
-short comment block covering props/params, return shape, and loading/error behavior, per
-RULES.md §5.1.
+**Documentation convention:** every exported component and every function in `services/api.ts` and `services/export.ts` carries a short comment block covering props/params, return shape, and loading/error behavior.
 
 ## 6. Database Schema
 
@@ -237,38 +226,43 @@ CREATE INDEX ix_predictions_created_at ON predictions (created_at);
 CREATE INDEX ix_predictions_predicted_disease ON predictions (predicted_disease);
 ```
 
-Managed via Alembic (`alembic revision --autogenerate`, one migration per schema change, never
-hand-edit an applied migration). `seed.py` inserts ≥20 realistic rows spanning several crop
-types, diseases, and `created_at` timestamps across the last 7+ days (so the volume chart isn't
-flat).
+Managed via Alembic — one migration per schema change, migrations are never hand-edited once applied. `seed.py` inserts 25 realistic rows spanning several crop types, diseases, and `created_at` timestamps across the last 7+ days, so the volume chart isn't flat and the analytics view isn't empty on first run.
 
 ## 7. Image Storage
 
-Images are uploaded directly to **Cloudinary** via the `CloudinaryService`. The backend receives the image, streams the bytes to Cloudinary, and receives a secure `image_url` which is then stored in the PostgreSQL database. This ensures persistent, scalable, and CDN-backed image delivery for the frontend.
+Images are uploaded directly to **Cloudinary** via `CloudinaryService`. The backend receives the multipart file, streams the bytes to Cloudinary, and receives a secure `image_url`, which is what gets persisted in Postgres — not the raw bytes and not a local file path. This gives persistent, CDN-backed image delivery to the frontend without managing a shared volume across containers. See `ENGINEERING_DECISIONS.md` §4 for the full tradeoff discussion and the migration path to S3/Azure Blob via the `StorageBackend` interface.
 
 ## 8. Docker Compose Layout
 
-Three services: `db` (postgres:16, healthcheck, named volume for data), `backend` (build from
-`backend/Dockerfile`, depends_on db with `condition:
-service_healthy`, runs Alembic migrations + seed on first boot via an entrypoint script),
-`frontend` (build from `frontend/Dockerfile`, depends_on backend). Secrets/config are read from
-`backend/.env` and docker-compose environment entries, with `.env.example` files committed for
-both services.
+Three services: `db` (postgres:16, healthcheck, named volume for data persistence), `backend` (built from `backend/Dockerfile`, `depends_on: db` with `condition: service_healthy`, runs Alembic migrations and seeds on first boot via an entrypoint script), `frontend` (built from `frontend/Dockerfile`, `depends_on: backend`). Secrets/config are read from `backend/.env` and Compose environment entries, with `.env.example` files committed for both services and real `.env` files gitignored.
 
 ## 9. CI Pipeline (GitHub Actions)
 
-Single workflow, two jobs (`backend`, `frontend`) running in parallel on push/PR to `main`:
-- **backend**: setup-python → pip install → `pytest`
-- **frontend**: setup-node → `npm ci` → `npm run lint` → `npm run build` (build acts as a type-check gate since it's TS)
+Single workflow (`ci.yml`), two jobs running in parallel on push/PR to `main`:
+- **backend**: `setup-python` → `pip install` → `pytest` (with `AI_PROVIDER=mock`, no real credentials needed)
+- **frontend**: `setup-node` → `npm ci` → `npm run lint` → `npm run build` (build acts as the TypeScript type-check gate)
 
 ## 10. Failure Handling Matrix
 
 | Failure | Where Caught | Response |
 |---|---|---|
-| Unsupported file type | Backend, before storage | 422, clear message |
+| Unsupported file type | Backend, before storage (also pre-empted client-side) | 422, clear message |
 | File > 10MB | Backend (and pre-empted client-side) | 422 |
 | AI provider timeout | `AIProvider` impl, wrapped in service | 502, no DB row written |
 | AI provider malformed/unexpected response | Provider impl parse step | 502, no DB row written |
-| Prediction ID not found | Route/service | 404 |
+| Cloudinary upload failure | Storage layer, wrapped in service | 502, no DB row written |
+| Prediction ID not found | Route/service | Real 404 |
 | DB unavailable | Global exception handler | 500, generic message, no stack trace to client, full trace to server logs |
 | Unhandled exception anywhere | Global FastAPI exception handler | 500, consistent envelope, never a raw traceback in the response |
+
+## 11. Production Readiness Notes
+
+The brief asks a teammate's review question directly: *what would you want to inherit if you came back to this codebase in six months?* A few honest notes in that direction, beyond what's already covered in `ENGINEERING_DECISIONS.md` §11:
+
+- **Timeouts and retries around the AI provider call are not currently configurable** — a slow Groq response blocks the request for as long as the underlying HTTP client's default timeout allows. A production version would add an explicit timeout and a bounded retry with backoff, surfaced as a `502` with a clear "try again" message rather than a hanging request.
+- **No rate limiting** on `POST /api/v1/predictions` — a single-tenant assignment doesn't need it, but a public-facing version would need per-client throttling in front of a paid AI provider call.
+- **No structured/observability-friendly logging** beyond Python's standard `logging` module — a production system would want request IDs threaded through logs so a failed prediction can be traced end-to-end across the AI call, storage call, and DB write.
+- **Secrets are environment variables, not a secrets manager** — appropriate for this assignment's Docker Compose scope; a real deployment would source `GROQ_API_KEY` and Cloudinary credentials from a managed secret store rather than a `.env` file.
+- **The `predictions` table has no soft-delete or audit trail** — every row is permanent and there's no record of who created it, appropriate for a single-tenant demo but the first thing to add alongside authentication.
+
+These are documented as forward-looking notes rather than implemented, since the brief scopes this assignment explicitly to Sprint 1 of a real feature, not the full production hardening pass.

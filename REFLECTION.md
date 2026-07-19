@@ -1,20 +1,21 @@
-# REFLECTION.md — Krishi Clinic Lite
+# Reflection — Krishi Clinic Lite
 
-## What Went Well
+## What was the hardest engineering challenge in this assignment, and how did you approach it?
 
-The strongest part of the build is the clean end-to-end path. The upload flow, backend validation, AI provider abstraction, storage, persistence, history, detail, and analytics views all connect through a small set of understandable contracts.
+The hardest part wasn't any single line of code — it was sequencing the prediction-creation flow correctly under failure. `POST /api/v1/predictions` has to touch three independent systems in one request: the AI provider, Cloudinary, and Postgres. Any of the three can fail independently, and a naive implementation could easily end up with a database row pointing at an image that was never actually uploaded, or an uploaded image with no corresponding diagnosis, or — worst of all — a "successful" response to the user that silently dropped one of those pieces.
 
-The `MockProvider` also paid off quickly. It made local testing and CI independent from Groq credentials while still exercising the same service and route paths as the real provider.
+I approached it by deciding what invariant mattered most before writing the code: **a prediction row should only ever exist if it's fully trustworthy** — a real diagnosis, a real image URL, both intact. That meant choosing an explicit order (validate → analyze → upload → persist) where each step either fully succeeds or the whole request fails cleanly with no partial write. I also made sure every failure mode in that chain (AI failure, invalid file, upload failure, DB failure) returned a real, distinct HTTP status code instead of collapsing everything into a generic error, since a teammate debugging a spike in failed uploads six months from now would need to know *which* step broke without reading the source.
 
-## What Was Tricky
+This connected directly to the API design work — getting the error-handling and status-code story right ended up mattering more than getting the AI prompt right, which lines up with the brief's own framing that the AI call is the least interesting part of the exercise.
 
-The main design tension was sequencing prediction creation. Uploading before AI analysis can waste storage on failed predictions, while analyzing before upload means the image is read into memory first. For this assignment's 10 MB limit, analyzing first is a reasonable tradeoff because it preserves the stronger guarantee: failed analyses do not create database rows or uploaded image records.
+## What was the biggest tradeoff you made, and why?
 
-The second tricky area was documentation drift. The implementation moved from local storage/Gemini-era assumptions to Cloudinary/Groq, so Phase 4 included an explicit alignment pass to make the docs match the code reviewers will read.
+The biggest tradeoff was choosing Cloudinary over local filesystem storage, despite the brief explicitly saying local storage was acceptable for this assignment. Local storage is simpler to reason about in isolation, but in a Docker Compose setup with separate frontend and backend containers, a local upload path creates two real problems: the file needs a shared volume to survive container restarts, and the frontend needs a directly reachable URL to render it, which a bare filesystem path doesn't give you without also standing up static file serving in the backend.
 
-## What I Would Improve Next
+I chose to accept a small deviation from the literal brief (local storage) in favor of satisfying its actual underlying ask more directly — the brief's own follow-up line says to design the code so cloud storage is a small, contained swap later. Building directly against Cloudinary, behind a `StorageBackend` interface that still has a local implementation on file for reference, means that underlying requirement is already satisfied rather than just promised. The cost is that a reviewer running this fully offline needs valid Cloudinary credentials even when using the deterministic Mock AI provider — Mock only removes the AI dependency, not the storage one. I judged that cost acceptable and documented it clearly rather than hiding it, since the alternative (implementing local storage "for real" and never actually testing the cloud swap) would have been the more common way this kind of ambiguity gets resolved poorly.
 
-I would extract analytics and prediction read queries into service classes so every route is only parse/delegate/return. The current backend is still small, but that split would make it easier to add filters, exports, and authorization later.
+## What was your biggest learning from building this?
 
-I would also add frontend component tests or Playwright smoke tests once the core assignment is complete. The backend has meaningful automated coverage, but the dashboard interactions are currently verified through lint/build and manual testing.
+The biggest learning was how much a codebase's documentation can drift from its own implementation without anyone noticing in the moment — and how much that drift costs a reviewer. Partway through the build, I switched AI providers (from an initial Gemini-based approach to Groq) and switched storage approaches (from local-only to Cloudinary), and for a while my own docs and code comments still described the earlier decisions. Catching and correcting that wasn't a one-line fix — it meant deliberately re-reading `README.md`, `ARCHITECTURE.md`, and `ENGINEERING_DECISIONS.md` against the actual code, function by function, and fixing stale references (including a couple of comments in the codebase itself that pointed at files that no longer existed).
 
+The concrete lesson: documentation isn't something you write once at the end and forget. Every time an implementation decision changes, the doc describing that decision needs to change with it in the same pass, or the two silently diverge and a reviewer ends up trusting the wrong one. I now treat "does the doc still match the code" as its own explicit checklist item before considering a piece of work done, not an afterthought bundled into "writing the README" at the very end.
