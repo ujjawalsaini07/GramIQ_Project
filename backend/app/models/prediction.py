@@ -10,6 +10,7 @@ class Prediction(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     crop_type = Column(String(100), nullable=False)
     image_filename = Column(String(255), nullable=True)
+    image_url = Column(String(1024), nullable=True)
     farmer_notes = Column(Text, nullable=True)
     predicted_disease = Column(String(150), nullable=False)
     confidence = Column(Float, nullable=False)

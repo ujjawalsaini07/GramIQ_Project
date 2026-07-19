@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "mock"
     GROQ_API_KEY: str | None = None
     
+    # Cloudinary Storage
+    CLOUDINARY_CLOUD_NAME: str | None = None
+    CLOUDINARY_API_KEY: str | None = None
+    CLOUDINARY_API_SECRET: str | None = None
+    
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
 

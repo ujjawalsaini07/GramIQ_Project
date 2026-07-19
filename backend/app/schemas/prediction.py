@@ -25,6 +25,7 @@ class PredictionOut(BaseModel):
     id: UUID
     crop_type: str
     image_filename: str | None
+    image_url: str | None = None
     farmer_notes: str | None
     predicted_disease: str
     confidence: float

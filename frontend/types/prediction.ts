@@ -16,6 +16,7 @@ export interface PredictionOut {
   id: string;
   crop_type: string;
   image_filename: string | null;
+  image_url: string | null;
   farmer_notes: string | null;
   predicted_disease: string;
   confidence: number;

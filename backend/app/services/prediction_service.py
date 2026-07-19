@@ -4,8 +4,8 @@ from app.models.prediction import Prediction
 from app.schemas.prediction import PredictionResult
 from app.services.ai.factory import get_ai_provider
 from app.services.ai.base import AIProviderError
-from app.services.storage.local import LocalStorageBackend
 from app.config import settings
+from app.services.storage.cloudinary_service import CloudinaryService
 
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -33,11 +33,7 @@ class PredictionService:
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(status_code=422, detail="File size exceeds the 10MB limit.")
             
-        # Save to local storage
-        storage = LocalStorageBackend()
-        image_filename = await storage.save(image, image_bytes)
-
-        # Call AI Provider
+        # Call AI Provider first to avoid uploading junk if AI fails early
         provider = get_ai_provider()
         try:
             ai_result = await provider.analyze(image_bytes, crop_type, farmer_notes)
@@ -45,10 +41,18 @@ class PredictionService:
             # Do NOT create DB row for failed analysis
             raise HTTPException(status_code=502, detail=f"AI Provider Error: {str(e)}")
 
+        # Save to Cloudinary storage
+        # We use the original filename (or a sanitized version)
+        try:
+            image_url = await CloudinaryService.upload_image(image_bytes, image.filename or "upload.jpg")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Storage Error: Failed to upload image to Cloudinary.")
+
         # Save to database
         db_prediction = Prediction(
             crop_type=crop_type,
-            image_filename=image_filename,
+            image_filename=image.filename,
+            image_url=image_url,
             farmer_notes=farmer_notes,
             predicted_disease=ai_result.disease,
             confidence=ai_result.confidence,

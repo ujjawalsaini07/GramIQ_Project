@@ -5,6 +5,7 @@ import { PredictionOut } from "../types/prediction";
 import Spinner from "./ui/Spinner";
 import ErrorBanner from "./ui/ErrorBanner";
 import PredictionDetail from "./PredictionDetail";
+import { UploadCloud, FileType2, AlignLeft, Sparkles } from "lucide-react";
 
 /**
  * UploadPanel handles image and data collection, submits to API, and shows the result.
@@ -52,59 +53,84 @@ export default function UploadPanel() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">New Diagnosis</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Crop Image *</label>
-            <input 
-              type="file" 
-              accept="image/jpeg, image/png, image/webp" 
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full border border-gray-300 p-2 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">JPEG, PNG, WebP up to 10MB.</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Crop Type *</label>
-            <input 
-              type="text" 
-              value={cropType}
-              onChange={(e) => setCropType(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="e.g. Tomato, Wheat"
-              required
-            />
-          </div>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 text-slate-50 opacity-50 select-none pointer-events-none">
+           <Sparkles className="w-48 h-48" />
+        </div>
+        
+        <div className="relative z-10">
+          <h2 className="text-2xl font-extrabold mb-6 text-slate-800 tracking-tight">New Diagnosis</h2>
+          <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                <UploadCloud className="w-4 h-4 text-emerald-600" />
+                Crop Image *
+              </label>
+              <div className="relative group">
+                <input 
+                  type="file" 
+                  accept="image/jpeg, image/png, image/webp" 
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 file:cursor-pointer file:transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20 rounded-xl border border-slate-200 p-1.5 bg-slate-50/50"
+                  required
+                />
+              </div>
+              <p className="text-xs font-medium text-slate-400 mt-2 ml-1">JPEG, PNG, WebP up to 10MB.</p>
+            </div>
+            
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                <FileType2 className="w-4 h-4 text-emerald-600" />
+                Crop Type *
+              </label>
+              <input 
+                type="text" 
+                value={cropType}
+                onChange={(e) => setCropType(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-slate-800 placeholder-slate-400 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                placeholder="e.g. Tomato, Wheat, Rice"
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Field Notes (Optional)</label>
-            <textarea 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded-md focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-              placeholder="Any context about the environment or symptoms..."
-            />
-          </div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                <AlignLeft className="w-4 h-4 text-emerald-600" />
+                Field Notes <span className="text-slate-400 font-medium">(Optional)</span>
+              </label>
+              <textarea 
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-slate-800 placeholder-slate-400 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all h-28 resize-none"
+                placeholder="Any context about the environment, weather, or symptoms..."
+              />
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-blue-600 text-white px-4 py-2.5 rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? "Analyzing Image..." : "Analyze Crop"}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-emerald-500 hover:to-teal-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99] flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Spinner /> 
+                  <span className="ml-2">Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" /> Analyze Crop
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
 
-      {loading && <Spinner />}
       {error && <ErrorBanner message={error} />}
+      
       {prediction && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Diagnosis Result</h2>
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
           <PredictionDetail prediction={prediction} />
         </div>
       )}
