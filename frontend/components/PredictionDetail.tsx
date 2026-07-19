@@ -1,5 +1,7 @@
 import { PredictionOut } from "../types/prediction";
-import { AlertCircle, CheckCircle2, Sprout, HeartPulse, Stethoscope, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Sprout, HeartPulse, Stethoscope, Clock, FileDown } from 'lucide-react';
+import Image from "next/image";
+import { exportPredictionPdf } from "../services/export";
 
 /**
  * PredictionDetail displays the structured diagnosis data with a polished UI.
@@ -23,8 +25,26 @@ export default function PredictionDetail({ prediction }: { prediction: Predictio
   const severity = prediction.severity as keyof typeof severityConfig;
   const { color: severityColor, icon: SeverityIcon } = severityConfig[severity] || severityConfig.Medium;
 
+  const handlePdfExport = () => {
+    try {
+      exportPredictionPdf(prediction);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Failed to open PDF export.");
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handlePdfExport}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 transition-colors"
+        >
+          <FileDown className="h-4 w-4" />
+          Export PDF
+        </button>
+      </div>
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -32,10 +52,12 @@ export default function PredictionDetail({ prediction }: { prediction: Predictio
           <div className="w-full md:w-2/5 shrink-0">
             <div className="aspect-square bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center group">
               {prediction.image_url ? (
-                <img 
+                <Image
                   src={prediction.image_url} 
                   alt={prediction.predicted_disease} 
-                  className="w-full h-full object-cover z-10 transition-transform duration-500 group-hover:scale-105"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 40vw"
+                  className="object-cover z-10 transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
                 <>
