@@ -44,8 +44,8 @@ export default function UploadPanel() {
       } else if (res.data) {
         setPrediction(res.data);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }

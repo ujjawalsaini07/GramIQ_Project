@@ -1,5 +1,5 @@
 import { APIResponse, PredictionOut, PaginatedPredictions } from "../types/prediction";
-
+import { AnalyticsSummary } from "../types/analytics";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 /**
@@ -55,7 +55,7 @@ export const api = {
    * Get aggregated analytics summary data.
    * @returns APIResponse with AnalyticsSummary (totals, disease/severity distributions, 7-day volume)
    */
-  async getAnalyticsSummary(): Promise<APIResponse<any>> {
+  async getAnalyticsSummary(): Promise<APIResponse<AnalyticsSummary>> {
     const res = await fetch(`${API_URL}/analytics/summary`, {
       cache: "no-store",
     });
