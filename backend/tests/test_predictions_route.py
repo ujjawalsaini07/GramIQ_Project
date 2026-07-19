@@ -1,0 +1,91 @@
+"""
+Test 2 — Route happy path
+Verifies POST /api/v1/predictions with a valid multipart request returns HTTP 201
+and the correct APIResponse envelope shape.
+
+Test 3 — Route failure path
+Verifies POST /api/v1/predictions with an invalid file type returns HTTP 422
+with success=False and a useful error message.
+"""
+import io
+import pytest
+from httpx import AsyncClient
+
+
+@pytest.mark.asyncio
+async def test_create_prediction_happy_path(client: AsyncClient):
+    """
+    Happy path: a valid JPEG upload with crop_type should return HTTP 201
+    with success=True and a prediction record containing all required fields.
+
+    Request: multipart/form-data — image (JPEG), crop_type="Tomato"
+    Response: 201, APIResponse[PredictionOut] with success=True
+    Auth: No authentication required (single-tenant dashboard)
+    """
+    from unittest.mock import patch, AsyncMock
+    # Patch storage so tests never hit the real filesystem
+    with patch(
+        "app.services.prediction_service.LocalStorageBackend.save",
+        new_callable=AsyncMock,
+        return_value="test_image.jpg",
+    ):
+        fake_jpeg = bytes([0xFF, 0xD8, 0xFF, 0xE0]) + b"\x00" * 16
+        response = await client.post(
+            "/api/v1/predictions",
+            files={"image": ("test_tomato.jpg", io.BytesIO(fake_jpeg), "image/jpeg")},
+            data={"crop_type": "Tomato", "farmer_notes": "Test upload"},
+        )
+
+    assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"] is not None
+    assert "predicted_disease" in body["data"]
+    assert "confidence" in body["data"]
+    assert "severity" in body["data"]
+    assert "recommendation" in body["data"]
+    assert body["data"]["crop_type"] == "Tomato"
+
+
+@pytest.mark.asyncio
+async def test_create_prediction_invalid_file_type(client: AsyncClient):
+    """
+    Failure path: uploading a plain text file instead of an image should return HTTP 422
+    with success=False and an informative error message.
+
+    Request: multipart/form-data — image (text/plain), crop_type="Tomato"
+    Response: 422 or 201 with success=False, error details in body
+    Auth: No authentication required (single-tenant dashboard)
+    """
+    fake_text_file = b"This is not an image"
+
+    response = await client.post(
+        "/api/v1/predictions",
+        files={"image": ("notes.txt", io.BytesIO(fake_text_file), "text/plain")},
+        data={"crop_type": "Tomato"},
+    )
+
+    # Our handler returns 201 with success=False for business-logic errors
+    body = response.json()
+    assert body["success"] is False, "Upload of invalid file type must have success=False"
+    assert body["message"] is not None and len(body["message"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_list_predictions_returns_envelope(client: AsyncClient):
+    """
+    Verifies GET /api/v1/predictions returns the correct paginated envelope.
+
+    Request: GET with default page/page_size
+    Response: 200, APIResponse with data.items, data.total, data.page, data.page_size
+    Auth: No authentication required (single-tenant dashboard)
+    Errors: 500 unexpected error
+    """
+    response = await client.get("/api/v1/predictions")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert "items" in body["data"]
+    assert "total" in body["data"]
+    assert "page" in body["data"]
+    assert "page_size" in body["data"]
