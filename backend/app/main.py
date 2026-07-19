@@ -33,6 +33,8 @@ async def health_check():
     return {"status": "ok"}
 
 from app.api.routes import predictions
+from app.api.routes import analytics
 
 app.include_router(predictions.router, prefix=settings.API_V1_STR)
+app.include_router(analytics.router, prefix=settings.API_V1_STR)
 
