@@ -34,9 +34,9 @@ htmlcov/
 # Local data / uploads
 backend/uploads/
 
-
 # Documentation
-ARCHITECTURE.md
+
+
 MEMORY.md
 PHASES.md
 PRD.md
