@@ -6,3 +6,5 @@ alembic==1.13.2
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
 python-multipart==0.0.9
+google-genai
+aiofiles==24.1.0
