@@ -10,6 +10,7 @@ with success=False and a useful error message.
 import io
 import pytest
 from httpx import AsyncClient
+from datetime import datetime, timezone
 
 
 @pytest.mark.asyncio
@@ -110,3 +111,59 @@ async def test_list_predictions_returns_envelope(client: AsyncClient):
     assert "total" in body["data"]
     assert "page" in body["data"]
     assert "page_size" in body["data"]
+
+
+@pytest.mark.asyncio
+async def test_list_predictions_applies_filters(client: AsyncClient, db_session):
+    """
+    Verifies GET /api/v1/predictions filters by crop, disease, and date range.
+
+    Request: GET /api/v1/predictions with crop_type, disease, date_from, date_to
+    Response: 200, APIResponse with only matching paginated rows
+    Auth: No authentication required (single-tenant dashboard)
+    Errors: 422 invalid query params, 500 unexpected error
+    """
+    from app.models.prediction import Prediction
+
+    matching_prediction = Prediction(
+        crop_type="BonusCropAlpha",
+        image_filename="bonus_alpha.jpg",
+        image_url="https://res.cloudinary.com/test/image/upload/GRAMIQ/bonus_alpha.jpg",
+        farmer_notes="Bonus filter match",
+        predicted_disease="BonusRustAlpha",
+        confidence=0.91,
+        severity="Medium",
+        recommendation="Apply the bonus filter treatment.",
+        ai_provider="mock",
+        created_at=datetime(2026, 7, 20, 10, 0, tzinfo=timezone.utc),
+    )
+    non_matching_prediction = Prediction(
+        crop_type="BonusCropBeta",
+        image_filename="bonus_beta.jpg",
+        image_url="https://res.cloudinary.com/test/image/upload/GRAMIQ/bonus_beta.jpg",
+        farmer_notes="Bonus filter miss",
+        predicted_disease="BonusBlightBeta",
+        confidence=0.77,
+        severity="Low",
+        recommendation="This row should not match.",
+        ai_provider="mock",
+        created_at=datetime(2026, 7, 10, 10, 0, tzinfo=timezone.utc),
+    )
+    db_session.add_all([matching_prediction, non_matching_prediction])
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/predictions",
+        params={
+            "crop_type": "alpha",
+            "disease": "rust",
+            "date_from": "2026-07-20",
+            "date_to": "2026-07-20",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["total"] == 1
+    assert body["data"]["items"][0]["crop_type"] == "BonusCropAlpha"
