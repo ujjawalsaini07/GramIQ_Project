@@ -4,6 +4,12 @@
 
 **A simplified, real version of GramIQ's crop disease advisory pipeline** — built for the GramIQ Full Stack Developer Intern (AI & Product Engineering) technical assignment.
 
+## Project Sample Images
+
+| Diagnose | History | Analytics |
+|---|---|---|
+| ![Diagnose screen](frontend/assests/Diagnose.png) | ![History screen](frontend/assests/History.png) | ![Analytics screen](frontend/assests/analytics.png) |
+
 ---
 
 ## Table of Contents
