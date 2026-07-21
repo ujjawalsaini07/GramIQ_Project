@@ -36,11 +36,11 @@ This document records the choices made while building Krishi Clinic Lite that af
 
 ## 4. Cloudinary for Image Storage (Not Local Disk)
 
-**Decision:** Images are streamed directly to Cloudinary after AI analysis succeeds; only the resulting secure `image_url` and original filename are stored in Postgres. A `StorageBackend` interface exists under `services/storage/`, with a local filesystem implementation kept as a reference/fallback but not wired into the active path.
+**Decision:** Images are streamed directly to Cloudinary after AI analysis succeeds; only the resulting secure `image_url` and original filename are stored in Postgres. The old local filesystem storage experiment was removed once Cloudinary became the active path.
 
 **Why:** The brief allows local storage for this assignment but explicitly asks for the storage approach to be documented and designed so that swapping in cloud storage later would be a small change. Rather than build local storage and describe how it *could* be swapped, Cloudinary was used directly — this sidesteps two real problems with local disk in a multi-container Docker Compose setup: (1) uploaded files need a shared volume to survive a container restart or be visible across the `backend` container's lifecycle, and (2) the frontend needs a directly reachable URL to render the image, which a bare local path doesn't give you without also standing up static file serving.
 
-**Tradeoff:** This is a deviation from "images may be stored locally" as literally written, resolved in the direction the brief's own follow-up sentence points toward ("design your code so replacing local storage with cloud storage would require minimal changes"). The `StorageBackend` interface exists specifically so this choice doesn't lock the project in — swapping Cloudinary for S3 or Azure Blob is one new class and one factory line, not a rewrite. The cost is that a reviewer running this project entirely offline needs valid Cloudinary credentials for the upload step to succeed, even when using the Mock AI provider — Mock only removes the AI dependency, not the storage dependency.
+**Tradeoff:** This is a deviation from "images may be stored locally" as literally written, resolved in the direction the brief's own follow-up sentence points toward ("design your code so replacing local storage with cloud storage would require minimal changes"). The cost is that a reviewer running this project entirely offline needs valid Cloudinary credentials for the upload step to succeed, even when using the Mock AI provider — Mock only removes the AI dependency, not the storage dependency.
 
 ---
 

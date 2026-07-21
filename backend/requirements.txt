@@ -8,7 +8,6 @@ psycopg2-binary==2.9.9
 python-multipart==0.0.9
 groq
 cloudinary
-aiofiles==24.1.0
 # Test deps
 pytest==8.2.2
 pytest-asyncio==0.23.8

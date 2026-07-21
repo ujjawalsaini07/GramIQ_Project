@@ -117,9 +117,7 @@ backend/
 │   ├── services/
 │   │   ├── prediction_service.py   # orchestration: validation + AI + storage + persistence
 │   │   ├── storage/
-│   │   │   ├── base.py             # StorageBackend interface
-│   │   │   ├── cloudinary_service.py # Cloudinary upload helper (active backend)
-│   │   │   └── local.py            # filesystem impl kept as reference/fallback
+│   │   │   └── cloudinary_service.py # Cloudinary upload helper (active backend)
 │   │   └── ai/
 │   │       ├── base.py             # AIProvider interface (abstract)
 │   │       ├── groq_provider.py
@@ -143,7 +141,7 @@ backend/
 
 **Rule enforced by this structure:** routes never import provider SDKs and never build response schemas by hand. Business orchestration lives in services. Small read queries for list/analytics currently sit close to their route rather than in a separate query module — acceptable at this scope, called out as the first refactor target in `ENGINEERING_DECISIONS.md` if the API grows.
 
-**Documentation convention:** every route in `api/routes/`, every method in `services/`, and every `AIProvider`/`StorageBackend` implementation carries a docstring documenting its Request/Response shape, Auth requirement, and possible error codes. This is written alongside the code as each piece is built, not retrofitted afterward.
+**Documentation convention:** every route in `api/routes/`, every method in `services/`, and every AI/storage implementation carries a docstring documenting its Request/Response shape, Auth requirement, and possible error codes. This is written alongside the code as each piece is built, not retrofitted afterward.
 
 ### 4.1 AIProvider Interface (contract)
 
@@ -230,7 +228,7 @@ Managed via Alembic — one migration per schema change, migrations are never ha
 
 ## 7. Image Storage
 
-Images are uploaded directly to **Cloudinary** via `CloudinaryService`. The backend receives the multipart file, streams the bytes to Cloudinary, and receives a secure `image_url`, which is what gets persisted in Postgres — not the raw bytes and not a local file path. This gives persistent, CDN-backed image delivery to the frontend without managing a shared volume across containers. See `ENGINEERING_DECISIONS.md` §4 for the full tradeoff discussion and the migration path to S3/Azure Blob via the `StorageBackend` interface.
+Images are uploaded directly to **Cloudinary** via `CloudinaryService`. The backend receives the multipart file, streams the bytes to Cloudinary, and receives a secure `image_url`, which is what gets persisted in Postgres — not the raw bytes and not a local file path. This gives persistent, CDN-backed image delivery to the frontend without managing a shared volume across containers. See `ENGINEERING_DECISIONS.md` §4 for the full tradeoff discussion.
 
 ## 8. Docker Compose Layout
 

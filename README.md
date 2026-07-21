@@ -257,7 +257,7 @@ A `factory.py` reads the `AI_PROVIDER` environment variable and returns the righ
 
 Images are uploaded to **Cloudinary** after AI analysis succeeds, and only the resulting secure `image_url` (plus the original filename) is persisted in Postgres — the backend never has to manage a local filesystem volume for uploads or worry about that volume surviving a container restart.
 
-The storage layer is behind a `StorageBackend` interface in `services/storage/`, with a filesystem implementation still present for reference. Moving to a different provider (AWS S3, Azure Blob) means writing one new class that implements `upload(image_bytes) -> url` and pointing the factory at it — no route, service call, or database column changes required.
+The active storage path is intentionally small: `PredictionService` calls `CloudinaryService` directly after AI analysis succeeds. Moving to a different provider later would mean replacing that storage service boundary, not changing routes, schemas, or frontend components.
 
 ## Local Setup
 
