@@ -75,6 +75,23 @@ export default function UploadPanel() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
+      {loading && (
+        <div className="fixed inset-0 z-[60] hidden lg:grid place-items-center bg-slate-950/35 px-8 backdrop-blur-sm">
+          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl shadow-slate-900/20">
+            <Image
+              src={loaderGuide}
+              alt="Crop photo guide showing the correct way to capture a clear affected leaf image"
+              className="mx-auto h-auto max-h-[72vh] w-full rounded-xl object-contain"
+              priority
+            />
+            <div className="mt-4 flex items-center justify-center gap-3 text-sm font-semibold text-emerald-700">
+              <Spinner />
+              <span>Analyzing crop image...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 text-slate-50 opacity-50 select-none pointer-events-none">
            <Sparkles className="w-48 h-48" />
@@ -151,18 +168,6 @@ export default function UploadPanel() {
               )}
             </button>
 
-            {loading && (
-              <div className="hidden lg:flex justify-center pt-2">
-                <div className="w-full max-w-2xl rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 shadow-sm">
-                  <Image
-                    src={loaderGuide}
-                    alt="Crop photo guide showing the correct way to capture a clear affected leaf image"
-                    className="mx-auto h-auto w-full rounded-xl object-contain"
-                    priority
-                  />
-                </div>
-              </div>
-            )}
           </form>
         </div>
       </div>
